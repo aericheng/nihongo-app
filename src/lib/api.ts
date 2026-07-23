@@ -234,6 +234,76 @@ export async function saveQuizSession(
   if (error) throw new Error(`儲存測驗紀錄失敗：${error.message}`)
 }
 
+// ---------- 學習統計 ----------
+
+export interface ProgressRow {
+  flashcard_id: string
+  starred: boolean
+  correct_count: number
+  wrong_count: number
+  last_tested_at: string | null
+}
+
+/** 本人全部的學習進度列（RLS 自動限定範圍） */
+export async function listAllProgress(): Promise<ProgressRow[]> {
+  const res = await supabase
+    .from('user_progress')
+    .select('flashcard_id, starred, correct_count, wrong_count, last_tested_at')
+  return unwrap(res, '讀取學習進度')
+}
+
+export interface QuizSessionRow {
+  id: string
+  folder_id: string
+  question_type: string
+  direction: string
+  scope: string
+  total_questions: number
+  correct_count: number
+  created_at: string
+}
+
+/** 本人全部的測驗紀錄，依時間舊到新 */
+export async function listAllQuizSessions(): Promise<QuizSessionRow[]> {
+  const res = await supabase
+    .from('quiz_sessions')
+    .select('id, folder_id, question_type, direction, scope, total_questions, correct_count, created_at')
+    .order('created_at')
+  return unwrap(res, '讀取測驗紀錄')
+}
+
+export interface CardLite {
+  id: string
+  japanese: string
+  kana: string
+  chinese: string
+  set_name: string
+  level_id: number
+}
+
+/** 本人全部單字卡（含所屬資料集名稱與級別），統計頁分組用 */
+export async function listAllCardsLite(): Promise<CardLite[]> {
+  const res = await supabase
+    .from('flashcards')
+    .select('id, japanese, kana, chinese, folders(study_sets(name, level_id))')
+  type Row = {
+    id: string
+    japanese: string
+    kana: string
+    chinese: string
+    folders: { study_sets: { name: string; level_id: number } | null } | null
+  }
+  const rows = unwrap(res, '讀取單字清單') as unknown as Row[]
+  return rows.map((r) => ({
+    id: r.id,
+    japanese: r.japanese,
+    kana: r.kana,
+    chinese: r.chinese,
+    set_name: r.folders?.study_sets?.name ?? '未分類',
+    level_id: r.folders?.study_sets?.level_id ?? 0,
+  }))
+}
+
 // ---------- AI 翻譯（Edge Function） ----------
 
 export async function translateChinese(chinese: string): Promise<TranslateResult> {

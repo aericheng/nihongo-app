@@ -11,6 +11,9 @@ export function AppLayout() {
             日語帳 <span className="font-jp text-sm text-slate-400">にほんごちょう</span>
           </Link>
           <div className="flex items-center gap-3 text-sm text-slate-500">
+            <Link to="/stats" className="rounded-lg px-3 py-1.5 hover:bg-slate-100">
+              📊 統計
+            </Link>
             <span className="hidden sm:inline">{session?.user.email}</span>
             <button onClick={signOut} className="rounded-lg px-3 py-1.5 hover:bg-slate-100">
               登出
