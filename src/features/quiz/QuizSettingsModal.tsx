@@ -52,10 +52,17 @@ export function QuizSettingsModal({ open, cards, onClose, onStart }: Props) {
   // 每次重新開啟設定 Modal 時回到安全的預設值（避免殘留上一輪不可用的選項）
   useEffect(() => {
     if (!open) return
-    setQuestionType(cards.length < 4 ? 'typing' : 'choice')
-    setDirection('jp2zh')
+    const defaultType: QuestionType = cards.length < 4 ? 'typing' : 'choice'
+    setQuestionType(defaultType)
+    setDirection(defaultType === 'typing' ? 'zh2jp' : 'jp2zh')
     setScope('all')
   }, [open, cards.length])
+
+  // 拼寫題只有中→日（拼寫＝產出日文；拼中文測不到東西，也得叫出系統鍵盤）
+  function selectTyping() {
+    setQuestionType('typing')
+    setDirection('zh2jp')
+  }
 
   const canStart = !(questionType === 'choice' && choiceDisabled) && !(scope === 'starred' && scopeStarredDisabled)
 
@@ -77,7 +84,7 @@ export function QuizSettingsModal({ open, cards, onClose, onStart }: Props) {
             >
               四選一選擇題
             </SegButton>
-            <SegButton active={questionType === 'typing'} onClick={() => setQuestionType('typing')}>
+            <SegButton active={questionType === 'typing'} onClick={selectTyping}>
               文字拼寫輸入題
             </SegButton>
           </div>
@@ -87,13 +94,20 @@ export function QuizSettingsModal({ open, cards, onClose, onStart }: Props) {
         <section>
           <h3 className="mb-2 text-sm font-semibold text-slate-700">翻譯方向</h3>
           <div className="flex gap-2">
-            <SegButton active={direction === 'jp2zh'} onClick={() => setDirection('jp2zh')}>
+            <SegButton
+              active={direction === 'jp2zh'}
+              disabled={questionType === 'typing'}
+              onClick={() => setDirection('jp2zh')}
+            >
               日 → 中
             </SegButton>
             <SegButton active={direction === 'zh2jp'} onClick={() => setDirection('zh2jp')}>
               中 → 日
             </SegButton>
           </div>
+          {questionType === 'typing' && (
+            <p className="mt-1 text-xs text-slate-400">拼寫題固定為中 → 日（用 50 音鍵盤拼出假名）</p>
+          )}
         </section>
 
         <section>
