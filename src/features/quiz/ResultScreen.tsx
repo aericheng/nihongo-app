@@ -50,9 +50,11 @@ export function ResultScreen({ folderId, config, total, correct, wrongCards, onR
           <ul className="space-y-2">
             {wrongCards.map((card) => (
               <li key={card.id} className="rounded-lg border border-slate-200 px-3 py-2">
-                <p className="text-sm font-medium text-slate-800">
-                  {card.japanese}
-                  <span className="ml-2 text-xs font-normal text-slate-400">{card.kana}</span>
+                <p className="font-jp text-sm font-medium text-slate-800">
+                  {card.kana || card.japanese}
+                  {card.kana && card.japanese !== card.kana && (
+                    <span className="ml-2 text-xs font-normal text-slate-400">{card.japanese}</span>
+                  )}
                 </p>
                 <p className="text-sm text-slate-500">{card.chinese}</p>
               </li>

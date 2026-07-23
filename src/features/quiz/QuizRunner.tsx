@@ -177,9 +177,11 @@ export function QuizRunner({ folderId, allCards, config, onAnswered, onRetry, on
             <p className="text-sm font-semibold">✗ 答錯了，已自動加入 ⭐ 錯題標記</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="text-base font-semibold text-slate-800">
-              {current.card.japanese}
-              <span className="ml-2 text-sm font-normal text-slate-400">{current.card.kana}</span>
+            <p className="font-jp text-base font-semibold text-slate-800">
+              {current.card.kana || current.card.japanese}
+              {current.card.kana && current.card.japanese !== current.card.kana && (
+                <span className="ml-2 text-sm font-normal text-slate-400">{current.card.japanese}</span>
+              )}
             </p>
             <p className="mt-1 text-sm text-slate-600">{current.card.chinese}</p>
             {current.card.notes && <p className="mt-1 text-xs text-slate-400">{current.card.notes}</p>}
@@ -226,10 +228,8 @@ function QuestionPrompt({ config, card }: { config: QuizConfig; card: CardWithPr
     <div className="mb-6 text-center">
       <p className="mb-3 text-xs font-medium text-slate-400">{promptText}</p>
       {isJp2Zh ? (
-        <div>
-          <p className="text-3xl font-bold text-slate-800">{card.japanese}</p>
-          <p className="mt-1 text-sm text-slate-400">{card.kana}</p>
-        </div>
+        // 只出假名，不出漢字——漢字對中文使用者等於直接暴雷答案
+        <p className="font-jp text-3xl font-bold text-slate-800">{card.kana || card.japanese}</p>
       ) : (
         <p className="text-3xl font-bold text-slate-800">{card.chinese}</p>
       )}
@@ -274,10 +274,8 @@ function ChoiceOptions({
             {direction === 'jp2zh' ? (
               option.chinese
             ) : (
-              <span>
-                {option.japanese}
-                <span className="ml-1 text-xs font-normal text-slate-400">{option.kana}</span>
-              </span>
+              // 選項只出假名——漢字會和中文題目互相對照暴雷
+              <span className="font-jp">{option.kana || option.japanese}</span>
             )}
           </button>
         )

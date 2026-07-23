@@ -24,10 +24,23 @@ export function buildQuestionPool(allCards: CardWithProgress[], config: QuizConf
   const base = config.scope === 'starred' ? allCards.filter((c) => c.starred) : allCards
   const shuffledBase = shuffle(base)
 
+  // 選項的顯示文字：日翻中顯示中文、中翻日顯示假名。
+  // 干擾項若與正解（或彼此）顯示文字相同（同音詞、同義翻譯），會出現兩個一模一樣的選項，必須排除。
+  const displayText = (c: CardWithProgress) =>
+    config.direction === 'jp2zh' ? c.chinese.trim() : (c.kana || c.japanese).trim()
+
   return shuffledBase.map((card) => {
     if (config.questionType !== 'choice') return { card, options: [] }
-    const distractorPool = allCards.filter((c) => c.id !== card.id)
-    const distractors = shuffle(distractorPool).slice(0, 3)
+    const seen = new Set([displayText(card)])
+    const distractors: CardWithProgress[] = []
+    for (const candidate of shuffle(allCards)) {
+      if (candidate.id === card.id) continue
+      const text = displayText(candidate)
+      if (seen.has(text)) continue
+      seen.add(text)
+      distractors.push(candidate)
+      if (distractors.length === 3) break
+    }
     return { card, options: shuffle([card, ...distractors]) }
   })
 }
