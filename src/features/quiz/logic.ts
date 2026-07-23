@@ -45,10 +45,41 @@ export function buildQuestionPool(allCards: CardWithProgress[], config: QuizConf
   })
 }
 
-/** 拼寫題答案比對（僅中→日）：接受漢字寫法或假名寫法皆算對 */
+/**
+ * 日翻中拼寫的目標中文：取第一個義項、去掉括號註記。
+ * 「高的；貴的」→「高的」、「母親（稱自己的）」→「母親」——拼寫不該要求拼出說明文字。
+ */
+export function chineseSpellingTarget(card: CardWithProgress): string {
+  const target = card.chinese
+    .replace(/（[^）]*）/g, '')
+    .split(/[;；]/)[0]
+    .trim()
+  return target || card.chinese.trim()
+}
+
+/**
+ * 日翻中拼寫的中文字塊：目標中文逐字拆開＋從其他卡的中文抽干擾字，洗牌。
+ * 中文沒有「完整鍵盤」可顯示，字塊庫就是它的鍵盤——干擾字給足量以維持難度。
+ */
+export function buildChineseTiles(card: CardWithProgress, allCards: CardWithProgress[]): string[] {
+  const answerChars = Array.from(chineseSpellingTarget(card))
+  const decoyPool = Array.from(
+    new Set(
+      allCards
+        .filter((c) => c.id !== card.id)
+        .flatMap((c) => Array.from(chineseSpellingTarget(c)))
+        .filter((ch) => ch.trim() !== '' && !answerChars.includes(ch)),
+    ),
+  )
+  const decoyCount = Math.max(6, 15 - answerChars.length)
+  const decoys = shuffle(decoyPool).slice(0, decoyCount)
+  return shuffle([...answerChars, ...decoys])
+}
+
+/** 拼寫題答案比對：日翻中比對目標中文（第一義項）；中翻日接受漢字或假名寫法 */
 export function isTypingAnswerCorrect(input: string, card: CardWithProgress, direction: Direction): boolean {
   const answer = input.trim()
-  if (direction === 'jp2zh') return answer === card.chinese.trim()
+  if (direction === 'jp2zh') return answer === chineseSpellingTarget(card)
   return answer === card.japanese.trim() || answer === card.kana.trim()
 }
 

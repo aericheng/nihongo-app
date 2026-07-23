@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { KanaKeyboard } from './KanaKeyboard'
 import { QuizOverlay } from './QuizOverlay'
 import { ResultScreen } from './ResultScreen'
-import { buildQuestionPool, isTypingAnswerCorrect } from './logic'
+import { buildChineseTiles, buildQuestionPool, isTypingAnswerCorrect } from './logic'
 
 interface Props {
   folderId: string
@@ -41,6 +41,15 @@ export function QuizRunner({ folderId, allCards, config, onAnswered, onRetry, on
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const current = questions[index]
+
+  // 日翻中拼寫的中文字塊庫（中文沒有完整鍵盤，字塊庫就是它的鍵盤）
+  const chineseTiles = useMemo(
+    () =>
+      config.questionType === 'typing' && config.direction === 'jp2zh' && current
+        ? buildChineseTiles(current.card, allCards)
+        : [],
+    [config.questionType, config.direction, current, allCards],
+  )
 
   useEffect(
     () => () => {
@@ -95,9 +104,9 @@ export function QuizRunner({ folderId, allCards, config, onAnswered, onRetry, on
     submitAnswer(option.id === current.card.id, option.id)
   }
 
-  function handleSpellingSubmit() {
-    if (phase !== 'answering' || typedAnswer.trim() === '') return
-    submitAnswer(isTypingAnswerCorrect(typedAnswer, current.card, config.direction))
+  function handleSpellingSubmit(answer: string) {
+    if (phase !== 'answering' || answer.trim() === '') return
+    submitAnswer(isTypingAnswerCorrect(answer, current.card, config.direction))
   }
 
   if (total === 0) {
@@ -151,8 +160,15 @@ export function QuizRunner({ folderId, allCards, config, onAnswered, onRetry, on
           direction={config.direction}
           onSelect={handleChoiceSelect}
         />
+      ) : config.direction === 'zh2jp' ? (
+        <SpellAnswer
+          value={typedAnswer}
+          phase={phase}
+          onChange={setTypedAnswer}
+          onSubmit={() => handleSpellingSubmit(typedAnswer)}
+        />
       ) : (
-        <SpellAnswer value={typedAnswer} phase={phase} onChange={setTypedAnswer} onSubmit={handleSpellingSubmit} />
+        <CharBankAnswer key={current.card.id} tiles={chineseTiles} phase={phase} onSubmit={handleSpellingSubmit} />
       )}
 
       {phase === 'feedback' && isCorrect && <CorrectFeedback />}
@@ -206,7 +222,9 @@ function QuestionPrompt({ config, card }: { config: QuizConfig; card: CardWithPr
       ? isJp2Zh
         ? '請選出正確的中文意思'
         : '請選出正確的日文'
-      : '請用下方鍵盤拼出日文（假名）'
+      : isJp2Zh
+        ? '請用下方字塊拼出中文意思'
+        : '請用下方鍵盤拼出日文（假名）'
 
   return (
     <div className="mb-6 text-center">
@@ -241,11 +259,12 @@ function ChoiceOptions({
       {options.map((option) => {
         const isCorrectOption = option.id === correctId
         const isSelected = option.id === selectedId
-        let style = 'border-slate-300 text-slate-700 hover:border-indigo-400 hover:bg-indigo-50'
+        // 與 50 音鍵盤同一套按鍵風格（白底細框、按下有回饋色）
+        let style = 'border-slate-200 bg-white text-slate-800 enabled:hover:bg-indigo-50 enabled:active:bg-indigo-100'
         if (phase === 'feedback') {
           if (isCorrectOption) style = 'border-emerald-500 bg-emerald-50 text-emerald-700'
           else if (isSelected) style = 'border-rose-500 bg-rose-50 text-rose-700'
-          else style = 'border-slate-200 text-slate-400'
+          else style = 'border-slate-200 bg-white text-slate-300'
         }
         return (
           <button
@@ -253,7 +272,7 @@ function ChoiceOptions({
             type="button"
             disabled={phase !== 'answering'}
             onClick={() => onSelect(option)}
-            className={`rounded-lg border px-4 py-3 text-left text-sm font-medium transition-colors disabled:cursor-not-allowed ${style}`}
+            className={`rounded-md border px-4 py-3 text-left text-base font-medium transition-colors disabled:cursor-not-allowed ${style}`}
           >
             {direction === 'jp2zh' ? (
               option.chinese
@@ -295,6 +314,70 @@ function SpellAnswer({
 
       <div className="flex justify-end">
         <Button onClick={onSubmit} disabled={!answering || value.trim() === ''}>
+          送出
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/** 日翻中拼寫：中文字塊庫（樣式比照 50 音鍵盤）。key 換題重掛，內部選取狀態自動歸零 */
+function CharBankAnswer({
+  tiles,
+  phase,
+  onSubmit,
+}: {
+  tiles: string[]
+  phase: Phase
+  onSubmit: (answer: string) => void
+}) {
+  const [picked, setPicked] = useState<number[]>([])
+  const answering = phase === 'answering'
+  const assembled = picked.map((i) => tiles[i]).join('')
+
+  return (
+    <div className="space-y-3">
+      <div className="flex min-h-[3.25rem] flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2">
+        {picked.length === 0 ? (
+          <span className="text-sm text-slate-400">點下方字塊拼出答案（點錯可點答案列的字移除）</span>
+        ) : (
+          picked.map((tileIndex, position) => (
+            <button
+              key={`${tileIndex}-${position}`}
+              type="button"
+              disabled={!answering}
+              onClick={() => setPicked((p) => p.filter((_, pos) => pos !== position))}
+              className="rounded-md border border-indigo-200 bg-white px-2.5 py-1.5 text-lg font-semibold text-slate-800 shadow-sm"
+            >
+              {tiles[tileIndex]}
+            </button>
+          ))
+        )}
+      </div>
+
+      <div className="grid grid-cols-5 gap-1">
+        {tiles.map((ch, tileIndex) => {
+          const used = picked.includes(tileIndex)
+          return (
+            <button
+              key={tileIndex}
+              type="button"
+              disabled={used || !answering}
+              onClick={() => setPicked((p) => [...p, tileIndex])}
+              className={`rounded-md border py-2 text-center text-base leading-none transition-colors ${
+                used
+                  ? 'border-slate-100 bg-slate-100 text-slate-300'
+                  : 'border-slate-200 bg-white text-slate-800 enabled:hover:bg-indigo-50 enabled:active:bg-indigo-100'
+              }`}
+            >
+              {ch}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={() => onSubmit(assembled)} disabled={!answering || picked.length === 0}>
           送出
         </Button>
       </div>
