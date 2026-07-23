@@ -121,7 +121,7 @@ export function ImportModal({ open, onClose, folderId, currentCount, onImported 
           onChange={(e) => setText(e.target.value)}
           rows={9}
           placeholder={'例：\n吃飯,ご飯を食べる,ごはんをたべる\n謝謝,ありがとう'}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-jp focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-jp focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
 
         <p className="text-sm text-slate-500">
