@@ -22,10 +22,8 @@ export function CardRow({ card, onToggleStar, onEdit, onDelete }: Props) {
       </button>
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-jp text-xl font-bold text-slate-800">{card.japanese}</span>
-          {card.kana && <span className="font-jp text-sm text-slate-400">{card.kana}</span>}
-        </div>
+        {/* 主顯示為假名（初學者可直接讀）；沒有假名的卡片退回顯示日文原文 */}
+        <p className="font-jp text-xl font-bold text-slate-900">{card.kana || card.japanese}</p>
         <p className="text-sm text-slate-600">{card.chinese}</p>
         {card.notes && <p className="mt-0.5 text-xs text-slate-400">{card.notes}</p>}
       </div>
