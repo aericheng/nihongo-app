@@ -95,7 +95,7 @@ export function QuizSettingsModal({ open, cards, onClose, onStart }: Props) {
             </SegButton>
           </div>
           {questionType === 'typing' && (
-            <p className="mt-1 text-xs text-slate-400">中 → 日：50 音鍵盤拼假名；日 → 中：中文字塊拼意思</p>
+            <p className="mt-1 text-xs text-slate-400">中 → 日：50 音鍵盤拼假名；日 → 中：手機鍵盤輸入中文</p>
           )}
         </section>
 

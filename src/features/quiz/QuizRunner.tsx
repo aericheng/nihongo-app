@@ -1,13 +1,15 @@
 // 出題／作答／對錯回饋畫面。答對自動前進，答錯停留看解答，手動按「下一題」才前進。
-// 拼寫題（僅中→日）用內嵌 50 音鍵盤作答，不喚起系統鍵盤——手機畫面不會被鍵盤推動。
+// 拼寫題：中→日用內嵌 50 音鍵盤（不喚起系統鍵盤）；日→中用系統鍵盤輸入中文。
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 import type { CardWithProgress, Direction, QuizConfig } from '../../lib/types'
 import { recordAnswer } from '../../lib/api'
 import { Button } from '../../components/ui/Button'
+import { TextInput } from '../../components/ui/TextInput'
 import { KanaKeyboard } from './KanaKeyboard'
 import { QuizOverlay } from './QuizOverlay'
 import { ResultScreen } from './ResultScreen'
-import { buildChineseTiles, buildQuestionPool, isTypingAnswerCorrect } from './logic'
+import { buildQuestionPool, isTypingAnswerCorrect } from './logic'
 
 interface Props {
   folderId: string
@@ -41,15 +43,6 @@ export function QuizRunner({ folderId, allCards, config, onAnswered, onRetry, on
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const current = questions[index]
-
-  // 日翻中拼寫的中文字塊庫（中文沒有完整鍵盤，字塊庫就是它的鍵盤）
-  const chineseTiles = useMemo(
-    () =>
-      config.questionType === 'typing' && config.direction === 'jp2zh' && current
-        ? buildChineseTiles(current.card, allCards)
-        : [],
-    [config.questionType, config.direction, current, allCards],
-  )
 
   useEffect(
     () => () => {
@@ -107,6 +100,14 @@ export function QuizRunner({ folderId, allCards, config, onAnswered, onRetry, on
   function handleSpellingSubmit(answer: string) {
     if (phase !== 'answering' || answer.trim() === '') return
     submitAnswer(isTypingAnswerCorrect(answer, current.card, config.direction))
+  }
+
+  function handleTypingKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    // IME（中文輸入法）組字中按下的 Enter 不算送出，否則會把選字用的 Enter 誤判成交卷
+    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+      e.preventDefault()
+      handleSpellingSubmit(typedAnswer)
+    }
   }
 
   if (total === 0) {
@@ -168,7 +169,13 @@ export function QuizRunner({ folderId, allCards, config, onAnswered, onRetry, on
           onSubmit={() => handleSpellingSubmit(typedAnswer)}
         />
       ) : (
-        <CharBankAnswer key={current.card.id} tiles={chineseTiles} phase={phase} onSubmit={handleSpellingSubmit} />
+        <TypingAnswer
+          value={typedAnswer}
+          phase={phase}
+          onChange={setTypedAnswer}
+          onKeyDown={handleTypingKeyDown}
+          onSubmit={() => handleSpellingSubmit(typedAnswer)}
+        />
       )}
 
       {phase === 'feedback' && isCorrect && <CorrectFeedback />}
@@ -223,7 +230,7 @@ function QuestionPrompt({ config, card }: { config: QuizConfig; card: CardWithPr
         ? '請選出正確的中文意思'
         : '請選出正確的日文'
       : isJp2Zh
-        ? '請用下方字塊拼出中文意思'
+        ? '請輸入正確的中文意思'
         : '請用下方鍵盤拼出日文（假名）'
 
   return (
@@ -321,66 +328,35 @@ function SpellAnswer({
   )
 }
 
-/** 日翻中拼寫：中文字塊庫（樣式比照 50 音鍵盤）。key 換題重掛，內部選取狀態自動歸零 */
-function CharBankAnswer({
-  tiles,
+/** 日翻中打字：系統鍵盤輸入中文。不 autoFocus——鍵盤只在使用者主動點輸入框時出現 */
+function TypingAnswer({
+  value,
   phase,
+  onChange,
+  onKeyDown,
   onSubmit,
 }: {
-  tiles: string[]
+  value: string
   phase: Phase
-  onSubmit: (answer: string) => void
+  onChange: (next: string) => void
+  onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void
+  onSubmit: () => void
 }) {
-  const [picked, setPicked] = useState<number[]>([])
   const answering = phase === 'answering'
-  const assembled = picked.map((i) => tiles[i]).join('')
-
   return (
-    <div className="space-y-3">
-      <div className="flex min-h-[3.25rem] flex-wrap items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2">
-        {picked.length === 0 ? (
-          <span className="text-sm text-slate-400">點下方字塊拼出答案（點錯可點答案列的字移除）</span>
-        ) : (
-          picked.map((tileIndex, position) => (
-            <button
-              key={`${tileIndex}-${position}`}
-              type="button"
-              disabled={!answering}
-              onClick={() => setPicked((p) => p.filter((_, pos) => pos !== position))}
-              className="rounded-md border border-indigo-200 bg-white px-2.5 py-1.5 text-lg font-semibold text-slate-800 shadow-sm"
-            >
-              {tiles[tileIndex]}
-            </button>
-          ))
-        )}
+    <div className="flex items-end gap-2">
+      <div className="flex-1">
+        <TextInput
+          disabled={!answering}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={onKeyDown}
+          placeholder="輸入中文意思後按 Enter 或送出"
+        />
       </div>
-
-      <div className="grid grid-cols-5 gap-1">
-        {tiles.map((ch, tileIndex) => {
-          const used = picked.includes(tileIndex)
-          return (
-            <button
-              key={tileIndex}
-              type="button"
-              disabled={used || !answering}
-              onClick={() => setPicked((p) => [...p, tileIndex])}
-              className={`rounded-md border py-2 text-center text-base leading-none transition-colors ${
-                used
-                  ? 'border-slate-100 bg-slate-100 text-slate-300'
-                  : 'border-slate-200 bg-white text-slate-800 enabled:hover:bg-indigo-50 enabled:active:bg-indigo-100'
-              }`}
-            >
-              {ch}
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="flex justify-end">
-        <Button onClick={() => onSubmit(assembled)} disabled={!answering || picked.length === 0}>
-          送出
-        </Button>
-      </div>
+      <Button onClick={onSubmit} disabled={!answering || value.trim() === ''}>
+        送出
+      </Button>
     </div>
   )
 }

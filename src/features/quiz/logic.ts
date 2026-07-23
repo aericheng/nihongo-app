@@ -46,40 +46,22 @@ export function buildQuestionPool(allCards: CardWithProgress[], config: QuizConf
 }
 
 /**
- * 日翻中拼寫的目標中文：取第一個義項、去掉括號註記。
- * 「高的；貴的」→「高的」、「母親（稱自己的）」→「母親」——拼寫不該要求拼出說明文字。
+ * 日翻中打字可接受的答案：完整原文、以及每個義項（去掉括號註記）。
+ * 「高的；貴的」→ 打「高的」或「貴的」都算對；「母親（稱自己的）」→ 打「母親」即可。
  */
-export function chineseSpellingTarget(card: CardWithProgress): string {
-  const target = card.chinese
+export function acceptedChineseAnswers(card: CardWithProgress): string[] {
+  const senses = card.chinese
     .replace(/（[^）]*）/g, '')
-    .split(/[;；]/)[0]
-    .trim()
-  return target || card.chinese.trim()
+    .split(/[;；]/)
+    .map((s) => s.trim())
+    .filter((s) => s !== '')
+  return Array.from(new Set([card.chinese.trim(), ...senses]))
 }
 
-/**
- * 日翻中拼寫的中文字塊：目標中文逐字拆開＋從其他卡的中文抽干擾字，洗牌。
- * 中文沒有「完整鍵盤」可顯示，字塊庫就是它的鍵盤——干擾字給足量以維持難度。
- */
-export function buildChineseTiles(card: CardWithProgress, allCards: CardWithProgress[]): string[] {
-  const answerChars = Array.from(chineseSpellingTarget(card))
-  const decoyPool = Array.from(
-    new Set(
-      allCards
-        .filter((c) => c.id !== card.id)
-        .flatMap((c) => Array.from(chineseSpellingTarget(c)))
-        .filter((ch) => ch.trim() !== '' && !answerChars.includes(ch)),
-    ),
-  )
-  const decoyCount = Math.max(6, 15 - answerChars.length)
-  const decoys = shuffle(decoyPool).slice(0, decoyCount)
-  return shuffle([...answerChars, ...decoys])
-}
-
-/** 拼寫題答案比對：日翻中比對目標中文（第一義項）；中翻日接受漢字或假名寫法 */
+/** 輸入/拼寫題答案比對：日翻中接受任一義項；中翻日接受漢字或假名寫法 */
 export function isTypingAnswerCorrect(input: string, card: CardWithProgress, direction: Direction): boolean {
   const answer = input.trim()
-  if (direction === 'jp2zh') return answer === chineseSpellingTarget(card)
+  if (direction === 'jp2zh') return acceptedChineseAnswers(card).includes(answer)
   return answer === card.japanese.trim() || answer === card.kana.trim()
 }
 
