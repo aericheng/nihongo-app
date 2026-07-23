@@ -112,15 +112,15 @@ export function ImportModal({ open, onClose, folderId, currentCount, onImported 
     <Modal open={open} title="批次匯入詞卡" onClose={onClose}>
       <div className="space-y-4">
         <p className="text-sm text-slate-500">
-          每行一張卡，格式「中文,日文,假名」（假名可省略；也接受第 4 欄作為解析/備註）。分隔符可用半形逗號、全形逗號（，）或
-          Tab。
+          每行一張卡，格式「中文,日文」——日文直接寫假名就可以。也可以加第 3 欄（假名）、第 4
+          欄（解析/備註）。分隔符可用半形逗號、全形逗號（，）或 Tab。
         </p>
 
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={9}
-          placeholder={'例：\n吃飯,ご飯を食べる,ごはんをたべる\n謝謝,ありがとう'}
+          placeholder={'例：\n謝謝,ありがとう\n吃飯,ごはんをたべる\n上學,学校に行く,がっこうにいく'}
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base font-jp focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
         />
 
