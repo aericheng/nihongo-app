@@ -45,6 +45,31 @@ export function buildQuestionPool(allCards: CardWithProgress[], config: QuizConf
   })
 }
 
+/** 拼寫題的正解文字：日翻中拼中文、中翻日拼假名 */
+export function spellingAnswerText(card: CardWithProgress, direction: Direction): string {
+  return direction === 'jp2zh' ? card.chinese.trim() : (card.kana || card.japanese).trim()
+}
+
+/**
+ * 拼字塊：正解逐字拆開＋從其他卡抽干擾字符，洗牌後回傳。
+ * 干擾字符不與正解字符重複（避免多顆同字塊造成「用哪顆都對」的混亂）；
+ * 正解越長干擾越少，控制總塊數在手機上一屏放得下。
+ */
+export function buildTiles(card: CardWithProgress, direction: Direction, allCards: CardWithProgress[]): string[] {
+  const answerChars = Array.from(spellingAnswerText(card, direction))
+  const decoyCount = answerChars.length <= 6 ? 5 : 3
+  const decoyPool = Array.from(
+    new Set(
+      allCards
+        .filter((c) => c.id !== card.id)
+        .flatMap((c) => Array.from(spellingAnswerText(c, direction)))
+        .filter((ch) => ch.trim() !== '' && !answerChars.includes(ch)),
+    ),
+  )
+  const decoys = shuffle(decoyPool).slice(0, decoyCount)
+  return shuffle([...answerChars, ...decoys])
+}
+
 /** 輸入題答案比對：日翻中比對中文；中翻日接受漢字寫法或假名寫法皆算對 */
 export function isTypingAnswerCorrect(input: string, card: CardWithProgress, direction: Direction): boolean {
   const answer = input.trim()
