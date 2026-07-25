@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { countCardsByFolder, createFolder, deleteFolder, getStudySet, listFolders } from '../lib/api'
+import { countCardsByFolder, createFolder, deleteFolder, getStudySet, listFolders, renameFolder } from '../lib/api'
 import { FOLDER_CAPACITY, suggestNextFolderName, type Folder, type StudySet } from '../lib/types'
 import { Button } from '../components/ui/Button'
 import { Modal } from '../components/ui/Modal'
@@ -26,6 +26,11 @@ export function StudySetPage() {
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   const [modalError, setModalError] = useState('')
+
+  const [renameTarget, setRenameTarget] = useState<Folder | null>(null)
+  const [renameName, setRenameName] = useState('')
+  const [renaming, setRenaming] = useState(false)
+  const [renameError, setRenameError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -72,6 +77,28 @@ export function StudySetPage() {
       setModalError(err instanceof Error ? err.message : '建立失敗')
     } finally {
       setCreating(false)
+    }
+  }
+
+  function openRename(folder: Folder) {
+    setRenameTarget(folder)
+    setRenameName(folder.name)
+    setRenameError('')
+  }
+
+  async function handleRename(e: FormEvent) {
+    e.preventDefault()
+    if (!renameTarget || !renameName.trim()) return
+    setRenaming(true)
+    setRenameError('')
+    try {
+      const updated = await renameFolder(renameTarget.id, renameName)
+      setFolders((prev) => prev.map((f) => (f.id === updated.id ? updated : f)))
+      setRenameTarget(null)
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : '重新命名失敗')
+    } finally {
+      setRenaming(false)
     }
   }
 
@@ -123,17 +150,30 @@ export function StudySetPage() {
               >
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="font-medium text-slate-800">{folder.name}</h2>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDelete(folder)
-                    }}
-                    aria-label="刪除資料夾"
-                    className="shrink-0 rounded p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-500"
-                  >
-                    ✕
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openRename(folder)
+                      }}
+                      aria-label="重新命名資料夾"
+                      className="rounded p-1 text-slate-300 hover:bg-indigo-50 hover:text-indigo-500"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDelete(folder)
+                      }}
+                      aria-label="刪除資料夾"
+                      className="rounded p-1 text-slate-300 hover:bg-rose-50 hover:text-rose-500"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
                 <p className="mt-2 text-xs text-slate-400">
                   {count} / {FOLDER_CAPACITY} 詞
@@ -166,6 +206,27 @@ export function StudySetPage() {
             </Button>
             <Button type="submit" disabled={creating || !newName.trim()}>
               {creating ? '建立中…' : '建立'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={renameTarget !== null} title="重新命名資料夾" onClose={() => setRenameTarget(null)}>
+        <form onSubmit={handleRename} className="space-y-4">
+          <TextInput
+            label="資料夾名稱"
+            value={renameName}
+            onChange={(e) => setRenameName(e.target.value)}
+            autoFocus
+            required
+          />
+          {renameError && <p className="text-sm text-rose-600">{renameError}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setRenameTarget(null)}>
+              取消
+            </Button>
+            <Button type="submit" disabled={renaming || !renameName.trim()}>
+              {renaming ? '儲存中…' : '儲存'}
             </Button>
           </div>
         </form>

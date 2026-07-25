@@ -82,6 +82,16 @@ export async function createFolder(studySetId: string, name: string, position: n
   return unwrap(res, '建立資料夾')
 }
 
+export async function renameFolder(id: string, name: string): Promise<Folder> {
+  const res = await supabase
+    .from('folders')
+    .update({ name: name.trim() })
+    .eq('id', id)
+    .select()
+    .single()
+  return unwrap(res, '重新命名資料夾')
+}
+
 export async function deleteFolder(id: string): Promise<void> {
   const { error } = await supabase.from('folders').delete().eq('id', id)
   if (error) throw new Error(`刪除資料夾失敗：${error.message}`)
