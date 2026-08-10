@@ -1,0 +1,25 @@
+name: Supabase keepalive
+
+# 免費方案專案閒置 7 天會被自動暫停；每週 ping 兩次（留冗餘）保持活動。
+# anon key 存於 repo secret SUPABASE_ANON_KEY（Settings → Secrets and variables → Actions）。
+
+on:
+  schedule:
+    - cron: "17 3 * * 1,4" # UTC 週一/週四 03:17（台北 11:17），避開整點高峰
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: https://mpwxjqohbjelisxfsmuu.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            "$SUPABASE_URL/rest/v1/")
+          echo "HTTP status: $code"
+          test "$code" = "200"
