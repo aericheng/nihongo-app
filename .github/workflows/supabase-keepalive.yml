@@ -17,9 +17,11 @@ jobs:
           SUPABASE_URL: https://mpwxjqohbjelisxfsmuu.supabase.co
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
+          # 查一張真實資料表（limit 1）才算得上資料庫活動；
+          # /rest/v1/ 根端點已改為僅限 service_role，anon 會 401。
           code=$(curl -s -o /dev/null -w '%{http_code}' \
             -H "apikey: $SUPABASE_ANON_KEY" \
             -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
-            "$SUPABASE_URL/rest/v1/")
+            "$SUPABASE_URL/rest/v1/levels?select=id&limit=1")
           echo "HTTP status: $code"
           test "$code" = "200"
