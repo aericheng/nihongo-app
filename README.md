@@ -84,3 +84,7 @@ npm run build      # 產出正式版到 dist/
 所有資料（詞卡、星星標記、測驗紀錄）都存在 Supabase 的 PostgreSQL，
 前端不留本機資料。任何裝置用同一組 Email/密碼登入，看到的就是同一份資料；
 Row Level Security 保證每個使用者只能讀寫自己的資料列。
+
+## License
+
+MIT — see [LICENSE](LICENSE).
